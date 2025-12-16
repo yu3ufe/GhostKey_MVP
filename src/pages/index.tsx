@@ -2,150 +2,114 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
+import { CrossmintPayButton } from "@crossmint/client-sdk-react-ui";
+import "@crossmint/client-sdk-react-ui/styles.css";
 
-// --- CONFIGURATION ---
-// PASTE YOUR CONTRACT ADDRESS HERE
-const CONTRACT_ADDRESS = '0x5ce71b5118885166a25130b57e97835d2c7D3597'; 
+// 1. CONFIGURATION
+const CONTRACT_ADDRESS = '0x4fa8389A99aD6c5F162F72850504e777A4a721AF'; // <--- UPDATE THIS
+const GENESIS_URI = 'ipfs://bafkreifpnkbj4hz5ez2qomjjrjv2psoujaupakx4ece34j46x4midoxi7u'; // <--- UPDATE THIS (From Pinata Phase 2)
 
 const ABI = [
-  {
-    inputs: [],
-    name: 'mint',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'owner', type: 'address' }],
-    name: 'balanceOf',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
+  { inputs: [{internalType: "address", name: "to", type: "address"}], name: "mintGenesis", outputs: [], stateMutability: "payable", type: "function" },
+  { inputs: [{internalType: "string", name: "uri", type: "string"}], name: "mintCustom", outputs: [], stateMutability: "payable", type: "function" },
+  { inputs: [{internalType: "address", name: "owner", type: "address"}], name: "balanceOf", outputs: [{internalType: "uint256", name: "", type: "uint256"}], stateMutability: "view", type: "function" },
+  { inputs: [{internalType: "uint256", name: "tokenId", type: "uint256"}], name: "revokeLicense", outputs: [], stateMutability: "nonpayable", type: "function" }
 ] as const;
 
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const { writeContract, isPending: isMinting, isSuccess: isMinted } = useWriteContract();
+  const { writeContract, isPending, isSuccess } = useWriteContract();
   const [mounted, setMounted] = useState(false);
+  const [customImage, setCustomImage] = useState(''); // For Scenario 1
 
-  // Prevent hydration errors
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  // Read Balance
   const { data: balance, refetch } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: ABI,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
+    address: CONTRACT_ADDRESS, abi: ABI, functionName: 'balanceOf', args: address ? [address] : undefined,
   });
 
-  // Refresh if minted
-  useEffect(() => {
-    if (isMinted) {
-      refetch();
-    }
-  }, [isMinted, refetch]);
+  useEffect(() => { if (isSuccess) refetch(); }, [isSuccess, refetch]);
 
   if (!mounted) return null;
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      background: '#0a0a0a', 
-      color: '#ededed',
-      fontFamily: 'sans-serif'
-    }}>
-      <Head>
-        <title>GhostKey MVP</title>
-      </Head>
+    <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#ededed', fontFamily: 'sans-serif', padding: '20px' }}>
+      <Head><title>GhostKey Sovereign Demo</title></Head>
 
       {/* HEADER */}
-      <div style={{ marginBottom: '40px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '20px' }}>GhostKey™ MVP</h1>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <ConnectButton />
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>GhostKey™ Demo</h1>
+        <ConnectButton />
       </div>
 
-      <div style={{ width: '100%', maxWidth: '400px', padding: '20px' }}>
-        
-        {/* SECTION 1: THE STORE */}
-        <div style={{ 
-          background: '#1a1a1a', 
-          borderRadius: '16px', 
-          padding: '24px', 
-          marginBottom: '24px',
-          border: '1px solid #333'
-        }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: '8px', color: '#888' }}>1. Acquire Asset</h2>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <div>
-              <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Genesis Key</p>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>Lifetime Access</p>
-            </div>
-            <div style={{ background: '#333', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>
-              #1776
-            </div>
-          </div>
-          
-          <button 
-            disabled={!isConnected || isMinting}
-            onClick={() => writeContract({ 
-              address: CONTRACT_ADDRESS, 
-              abi: ABI, 
-              functionName: 'mint' 
-            })}
-            style={{ 
-              width: '100%',
-              background: isMinting ? '#666' : '#fff', 
-              color: '#000', 
-              border: 'none', 
-              padding: '14px', 
-              borderRadius: '8px', 
-              cursor: isMinting ? 'not-allowed' : 'pointer',
-              fontWeight: 'bold',
-              fontSize: '1rem'
-            }}
-          >
-            {isMinting ? 'Minting...' : '💎 Mint on Polygon'}
-          </button>
-        </div>
+      <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
 
-        {/* SECTION 2: THE APP GATE */}
-        <div style={{ 
-          background: Number(balance) > 0 ? '#102e1b' : '#2e1010', 
-          borderRadius: '16px', 
-          padding: '24px', 
-          border: Number(balance) > 0 ? '1px solid #1f5e32' : '1px solid #5e1f1f',
-          textAlign: 'center',
-          transition: 'all 0.3s ease'
-        }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: '16px', color: Number(balance) > 0 ? '#4ade80' : '#f87171' }}>
-            2. App Access
+        {/* SCENARIO 2: CREDIT CARD (The "Normie" Path) */}
+        <section style={{ background: '#1a1a1a', padding: '20px', borderRadius: '12px', border: '1px solid #333' }}>
+          <h2 style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>SCENARIO 2: STANDARD USER</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontWeight: 'bold' }}>Genesis Key</p>
+              <p style={{ fontSize: '0.8rem', color: '#666' }}>$0.50 (USD) • Credit Card</p>
+            </div>
+            {/* CROSSMINT BUTTON */}
+            <CrossmintPayButton
+              collectionId="<YOUR_CROSSMINT_COLLECTION_ID>"
+              projectId="<YOUR_CROSSMINT_PROJECT_ID>"
+              mintConfig={{ "type": "erc-721", "totalPrice": "0.50", "quantity": "1" }}
+              environment="production" // Use "production" for Mainnet
+            />
+          </div>
+        </section>
+
+        {/* SCENARIO 1: CUSTOM CRYPTO MINT (The "Live Convert" Path) */}
+        <section style={{ background: '#1a1a1a', padding: '20px', borderRadius: '12px', border: '1px solid #333' }}>
+          <h2 style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>SCENARIO 1: LIVE CONVERT</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+             <p style={{ fontSize: '0.9rem' }}>Paste Pinata Hash (IPFS) to mint a custom key:</p>
+             <input 
+                type="text" 
+                placeholder="ipfs://Qm..." 
+                value={customImage}
+                onChange={(e) => setCustomImage(e.target.value)}
+                style={{ padding: '10px', borderRadius: '6px', border: 'none', background: '#333', color: 'white' }}
+             />
+             <button 
+                onClick={() => writeContract({ 
+                  address: CONTRACT_ADDRESS, abi: ABI, functionName: 'mintCustom', 
+                  args: [customImage || GENESIS_URI], value: BigInt(0) 
+                })}
+                disabled={!isConnected || isPending}
+                style={{ background: '#fff', color: 'black', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+             >
+               {isPending ? 'Minting...' : 'Mint Custom Key (Crypto)'}
+             </button>
+          </div>
+        </section>
+
+        {/* SCENARIO 4: REVOCATION (The "Kill Switch") */}
+        <section style={{ background: '#2e1010', padding: '20px', borderRadius: '12px', border: '1px solid #5e1f1f' }}>
+          <h2 style={{ color: '#f87171', fontSize: '0.9rem', marginBottom: '10px' }}>SCENARIO 4: ADMIN ZONE</h2>
+          <p style={{ fontSize: '0.8rem', color: '#ccc', marginBottom: '10px' }}>Revoke the last minted token (Demo Purpose Only)</p>
+          <button 
+             onClick={() => {
+                const tokenIdToBurn = prompt("Enter Token ID to Revoke:");
+                if(tokenIdToBurn) writeContract({ 
+                  address: CONTRACT_ADDRESS, abi: ABI, functionName: 'revokeLicense', args: [BigInt(tokenIdToBurn)] 
+                });
+             }}
+             style={{ background: '#dc2626', color: 'white', padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', width: '100%' }}
+          >
+            ⚠️ Revoke License
+          </button>
+        </section>
+
+        {/* SCENARIO 3: APP STATE */}
+        <div style={{ textAlign: 'center', padding: '30px', background: Number(balance) > 0 ? '#102e1b' : '#333', borderRadius: '12px' }}>
+          <h2 style={{ margin: 0, color: Number(balance) > 0 ? '#4ade80' : '#888' }}>
+            {Number(balance) > 0 ? '🔓 APP UNLOCKED' : '🔒 APP LOCKED'}
           </h2>
-          
-          {!isConnected ? (
-             <p style={{ color: '#888' }}>Connect Wallet to Check Access</p>
-          ) : Number(balance) > 0 ? (
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🔓</div>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fff' }}>UNLOCKED</h3>
-              <p style={{ fontSize: '0.9rem', color: '#4ade80', marginTop: '8px' }}>Sovereign Status Verified</p>
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🔒</div>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fff' }}>LOCKED</h3>
-              <p style={{ fontSize: '0.9rem', color: '#f87171', marginTop: '8px' }}>No License Found</p>
-            </div>
-          )}
+          {Number(balance) > 0 && <p style={{ fontSize: '0.8rem', color: '#fff', marginTop: '10px' }}>License Verified on Polygon</p>}
         </div>
 
       </div>

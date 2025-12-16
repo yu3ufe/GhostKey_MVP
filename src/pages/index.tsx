@@ -2,8 +2,14 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
+import dynamic from 'next/dynamic';
 // @ts-ignore
-import { CrossmintPayButton } from "@crossmint/client-sdk-react-ui";
+
+// Load Crossmint only on the client-side to avoid build errors
+const CrossmintPayButton = dynamic(
+  () => import('@crossmint/client-sdk-react-ui').then((mod) => mod.CrossmintPayButton),
+  { ssr: false }
+);
 
 // --- CONFIGURATION (FILL THESE) ---
 const CONTRACT_ADDRESS = '0x5f06BAeEbB433b1ce4B0143c88AD6F4a0E83a48e'; 

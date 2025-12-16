@@ -3,22 +3,21 @@ import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
-// @ts-ignore
 
-// Load Crossmint only on the client-side to avoid build errors
+// --- CONFIGURATION ---
+const CONTRACT_ADDRESS = '0x5f06BAeEbB433b1ce4B0143c88AD6F4a0E83a48e'; 
+const TREASURY_ADDRESS = '0x081ded677e03c5070d75f681e82a9ab0dfcf78c3'; // Must match connected wallet for Admin View
+const GENESIS_URI = 'ipfs://bafkreigab7aey2nddpt7zw4zyvtqc2tyhg6rdw2yabd42hwn5c2v5mkz4q'; 
+
+// CROSSMINT CONFIG
+const CROSSMINT_COLLECTION_ID = "8dc0127c-7ce2-4d34-9485-9b3be58e6442"; // Ensure this is correct!
+const CROSSMINT_PROJECT_ID = "d945c06d-bd3c-4c81-b527-506ca635d747";       
+
+// Dynamic Import with forced "any" type to fix build errors
 const CrossmintPayButton = dynamic(
   () => import('@crossmint/client-sdk-react-ui').then((mod: any) => mod.CrossmintPayButton),
   { ssr: false }
 ) as any;
-
-// --- CONFIGURATION (FILL THESE) ---
-const CONTRACT_ADDRESS = '0x5f06BAeEbB433b1ce4B0143c88AD6F4a0E83a48e'; 
-const TREASURY_ADDRESS = '0x081ded677e03c5070d75f681e82a9ab0dfcf78c3';
-const GENESIS_URI = 'ipfs://bafkreigab7aey2nddpt7zw4zyvtqc2tyhg6rdw2yabd42hwn5c2v5mkz4q'; 
-
-// CROSSMINT CONFIG
-const CROSSMINT_COLLECTION_ID = "8dc0127c-7ce2-4d34-9485-9b3be58e6442"; // From Collections tab
-const CROSSMINT_PROJECT_ID = "d945c06d-bd3c-4c81-b527-506ca635d747";       // From API Keys tab
 
 const ABI = [
   { inputs: [{internalType: "address", name: "to", type: "address"}], name: "mintGenesis", outputs: [], stateMutability: "payable", type: "function" },
@@ -34,13 +33,20 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [customImage, setCustomImage] = useState('');
 
+  // Fix Hydration errors
   useEffect(() => { setMounted(true); }, []);
+
+  // CHECK ADMIN STATUS (Case insensitive check)
+  const isAdmin = address && TREASURY_ADDRESS && (address.toLowerCase() === TREASURY_ADDRESS.toLowerCase());
 
   const { data: balance, refetch } = useReadContract({
     address: CONTRACT_ADDRESS, abi: ABI, functionName: 'balanceOf', args: address ? [address] : undefined,
   });
 
   useEffect(() => { if (isSuccess) refetch(); }, [isSuccess, refetch]);
+
+  // MASTER KEY LOGIC: Unlocked if (Balance > 0) OR (Is Admin)
+  const isUnlocked = (Number(balance) > 0) || isAdmin;
 
   if (!mounted) return null;
 
@@ -49,87 +55,110 @@ export default function Home() {
       <Head><title>GhostKey Owner Demo</title></Head>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>GhostKey™ Owner Demo</h1>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>GhostKey™ Demo</h1>
         <ConnectButton />
       </div>
 
       <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
 
-        {/* SCENARIO 2: CARD PAYMENT */}
+        {/* SCENARIO 2: PUBLIC USER VIEW (CREDIT CARD) */}
         <section style={{ background: '#1a1a1a', padding: '20px', borderRadius: '12px', border: '1px solid #333' }}>
-          <h2 style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>SCENARIO 2: CREDIT CARD</h2>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <p style={{ fontWeight: 'bold' }}>Genesis Key</p>
-              <p style={{ fontSize: '0.8rem', color: '#666' }}>$0.50 USD • Visa/Mastercard</p>
+          <h2 style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>PUBLIC: PURCHASE LICENSE</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontWeight: 'bold' }}>Genesis Key</p>
+                <p style={{ fontSize: '0.8rem', color: '#666' }}>$0.50 USD • Lifetime Access</p>
+              </div>
             </div>
-            
-            <CrossmintPayButton
-              collectionId={CROSSMINT_COLLECTION_ID}
-              projectId={CROSSMINT_PROJECT_ID}
-              mintConfig={{ 
-                  "type": "erc-721", 
-                  "totalPrice": "0.50", 
-                  "quantity": "1" 
-              }}
-              environment="production"
-              style={{ padding: '10px 20px', borderRadius: '8px' }} // Basic manual styling since we removed CSS
-            />
+
+            {/* CROSSMINT BUTTON WITH MANUAL STYLING FIX */}
+            <div style={{ width: '100%', height: '50px', background: '#333', borderRadius: '8px', overflow: 'hidden' }}>
+                <CrossmintPayButton
+                  collectionId={CROSSMINT_COLLECTION_ID}
+                  projectId={CROSSMINT_PROJECT_ID}
+                  mintConfig={{ 
+                      "type": "erc-721", 
+                      "totalPrice": "0.50", 
+                      "quantity": "1" 
+                  }}
+                  environment="production"
+                  // MANUALLY FORCE STYLING SO IT IS VISIBLE
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    background: 'white',
+                    color: 'black',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                  className="crossmint-button-manual-fix"
+                />
+            </div>
+            <p style={{fontSize: '10px', color: '#555', textAlign: 'center'}}>
+                (If button is invisible, check Collection ID in code)
+            </p>
           </div>
         </section>
 
-        {/* SCENARIO 1: CRYPTO MINT */}
-        <section style={{ background: '#1a1a1a', padding: '20px', borderRadius: '12px', border: '1px solid #333' }}>
-          <h2 style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>SCENARIO 1: LIVE CRYPTO MINT</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-             <input 
-                type="text" 
-                placeholder="Paste IPFS Hash (ipfs://...)" 
-                value={customImage}
-                onChange={(e) => setCustomImage(e.target.value)}
-                style={{ padding: '10px', borderRadius: '6px', border: 'none', background: '#333', color: 'white' }}
-             />
-             <button 
-                onClick={() => writeContract({ 
-                  address: CONTRACT_ADDRESS, abi: ABI, functionName: 'mintCustom', 
-                  args: [customImage || GENESIS_URI], 
-                  value: BigInt(100000000000000000) // 0.1 MATIC
-                })}
-                disabled={!isConnected || isPending}
-                style={{ background: '#fff', color: 'black', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-             >
-               {isPending ? 'Processing...' : 'Mint with Wallet (0.1 MATIC)'}
-             </button>
-          </div>
-        </section>
+        {/* ADMIN ONLY SECTION */}
+        {isAdmin && (
+            <div style={{ border: '1px dashed #666', padding: '20px', borderRadius: '12px' }}>
+                <h3 style={{ marginTop: 0, color: '#fbbf24', textAlign: 'center' }}>👑 ADMIN / TREASURY CONTROLS</h3>
+                
+                {/* SCENARIO 1: CUSTOM MINT */}
+                <section style={{ marginTop: '20px', background: '#1a1a1a', padding: '15px', borderRadius: '8px' }}>
+                    <h2 style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>SCENARIO 1: MINT CUSTOM NFT</h2>
+                    <input 
+                        type="text" 
+                        placeholder="Paste IPFS Hash (ipfs://...)" 
+                        value={customImage}
+                        onChange={(e) => setCustomImage(e.target.value)}
+                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: 'none', background: '#333', color: 'white', marginBottom: '10px' }}
+                    />
+                    <button 
+                        onClick={() => writeContract({ 
+                        address: CONTRACT_ADDRESS, abi: ABI, functionName: 'mintCustom', 
+                        args: [customImage || GENESIS_URI], 
+                        value: BigInt(100000000000000000) // 0.1 MATIC
+                        })}
+                        disabled={!isConnected || isPending}
+                        style={{ width: '100%', background: '#fff', color: 'black', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                    {isPending ? 'Minting...' : 'Mint Special Key (0.1 MATIC)'}
+                    </button>
+                </section>
 
-        {/* ADMIN CONTROLS */}
-        <section style={{ background: '#2e1010', padding: '20px', borderRadius: '12px', border: '1px solid #5e1f1f' }}>
-          <h2 style={{ color: '#f87171', fontSize: '0.9rem', marginBottom: '10px' }}>ADMIN CONTROLS</h2>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-               onClick={() => {
-                  const id = prompt("Token ID to Revoke:");
-                  if(id) writeContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'revokeLicense', args: [BigInt(id)] });
-               }}
-               style={{ background: '#dc2626', color: 'white', padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', flex: 1 }}
-            >
-              ⚠️ Revoke Key
-            </button>
-            <button 
-               onClick={() => writeContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'withdraw' })}
-               style={{ background: '#16a34a', color: 'white', padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', flex: 1 }}
-            >
-              💰 Withdraw
-            </button>
-          </div>
-        </section>
+                {/* REVOKE & WITHDRAW */}
+                <section style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+                    <button 
+                    onClick={() => {
+                        const id = prompt("Token ID to Revoke:");
+                        if(id) writeContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'revokeLicense', args: [BigInt(id)] });
+                    }}
+                    style={{ background: '#dc2626', color: 'white', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', flex: 1 }}
+                    >
+                    ⚠️ Revoke Key
+                    </button>
+                    <button 
+                    onClick={() => writeContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'withdraw' })}
+                    style={{ background: '#16a34a', color: 'white', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', flex: 1 }}
+                    >
+                    💰 Withdraw
+                    </button>
+                </section>
+            </div>
+        )}
 
-        {/* STATUS */}
-        <div style={{ textAlign: 'center', padding: '30px', background: Number(balance) > 0 ? '#102e1b' : '#333', borderRadius: '12px' }}>
-          <h2 style={{ margin: 0, color: Number(balance) > 0 ? '#4ade80' : '#888' }}>
-            {Number(balance) > 0 ? '🔓 UNLOCKED' : '🔒 LOCKED'}
+        {/* APP STATUS */}
+        <div style={{ textAlign: 'center', padding: '30px', background: isUnlocked ? '#102e1b' : '#333', borderRadius: '12px', border: isUnlocked ? '1px solid #4ade80' : 'none' }}>
+          <h2 style={{ margin: 0, color: isUnlocked ? '#4ade80' : '#f87171' }}>
+            {isUnlocked ? '🔓 APP UNLOCKED' : '🔒 APP LOCKED'}
           </h2>
+          {isAdmin && <p style={{ fontSize: '12px', color: '#fbbf24', marginTop: '5px' }}>(Unlocked by Treasury Authority)</p>}
         </div>
 
       </div>

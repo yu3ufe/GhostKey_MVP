@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 
 // Load Crossmint only on the client-side to avoid build errors
 const CrossmintPayButton = dynamic(
-  () => import('@crossmint/client-sdk-react-ui').then((mod) => mod.CrossmintPayButton),
+  () => import('@crossmint/client-sdk-react-ui').then((mod: any) => mod.CrossmintPayButton),
   { ssr: false }
 );
 

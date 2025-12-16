@@ -9,7 +9,7 @@ import dynamic from 'next/dynamic';
 const CrossmintPayButton = dynamic(
   () => import('@crossmint/client-sdk-react-ui').then((mod: any) => mod.CrossmintPayButton),
   { ssr: false }
-);
+) as any;
 
 // --- CONFIGURATION (FILL THESE) ---
 const CONTRACT_ADDRESS = '0x5f06BAeEbB433b1ce4B0143c88AD6F4a0E83a48e'; 

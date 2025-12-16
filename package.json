@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@crossmint/client-sdk-react-ui": "^1.15.2",
     "@rainbow-me/rainbowkit": "^2.2.10",
     "@tanstack/react-query": "^5.55.3",
     "next": "^15.3.7",

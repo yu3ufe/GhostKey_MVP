@@ -2,6 +2,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
+// @ts-ignore
 import { CrossmintPayButton } from "@crossmint/client-sdk-react-ui";
 import "@crossmint/client-sdk-react-ui/styles.css";
 
@@ -55,7 +56,7 @@ export default function Home() {
             </div>
             {/* HERE IS THE FIX FOR THE PRICE */}
             <CrossmintPayButton
-              collectionId="YOUR_COLLECTION_ID"
+              collectionId="8dc0127c-7ce2-4d34-9485-9b3be58e6442"
               projectId="YOUR_PROJECT_ID"
               mintConfig={{ 
                   "type": "erc-721", 

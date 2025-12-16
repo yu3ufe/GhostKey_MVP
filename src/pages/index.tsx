@@ -11,9 +11,9 @@ const GENESIS_URI = 'ipfs://bafkreigab7aey2nddpt7zw4zyvtqc2tyhg6rdw2yabd42hwn5c2
 
 // CROSSMINT CONFIG
 const CROSSMINT_COLLECTION_ID = "8dc0127c-7ce2-4d34-9485-9b3be58e6442"; // Ensure this is correct!
-const CROSSMINT_PROJECT_ID = "d945c06d-bd3c-4c81-b527-506ca635d747";       
+const CROSSMINT_PROJECT_ID = "d945c06d-bd3c-4c81-b527-506ca635d747";   
 
-// Dynamic Import with forced "any" type to fix build errors
+// Dynamic Import with forced "any" type
 const CrossmintPayButton = dynamic(
   () => import('@crossmint/client-sdk-react-ui').then((mod: any) => mod.CrossmintPayButton),
   { ssr: false }
@@ -33,10 +33,9 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [customImage, setCustomImage] = useState('');
 
-  // Fix Hydration errors
   useEffect(() => { setMounted(true); }, []);
 
-  // CHECK ADMIN STATUS (Case insensitive check)
+  // ADMIN CHECK (Safe Case-Insensitive)
   const isAdmin = address && TREASURY_ADDRESS && (address.toLowerCase() === TREASURY_ADDRESS.toLowerCase());
 
   const { data: balance, refetch } = useReadContract({
@@ -45,7 +44,6 @@ export default function Home() {
 
   useEffect(() => { if (isSuccess) refetch(); }, [isSuccess, refetch]);
 
-  // MASTER KEY LOGIC: Unlocked if (Balance > 0) OR (Is Admin)
   const isUnlocked = (Number(balance) > 0) || isAdmin;
 
   if (!mounted) return null;
@@ -61,57 +59,63 @@ export default function Home() {
 
       <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
 
-        {/* SCENARIO 2: PUBLIC USER VIEW (CREDIT CARD) */}
+        {/* SCENARIO: PUBLIC PURCHASE */}
         <section style={{ background: '#1a1a1a', padding: '20px', borderRadius: '12px', border: '1px solid #333' }}>
           <h2 style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>PUBLIC: PURCHASE LICENSE</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontWeight: 'bold' }}>Genesis Key</p>
-                <p style={{ fontSize: '0.8rem', color: '#666' }}>$0.50 USD • Lifetime Access</p>
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* OPTION 1: CREDIT CARD */}
+            <div style={{ padding: '15px', background: '#222', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <span style={{ fontWeight: 'bold' }}>💳 Pay with Card</span>
+                    <span style={{ color: '#666' }}>$0.50</span>
+                </div>
+                {/* FORCE VISIBILITY WRAPPER */}
+                <div style={{ position: 'relative', minHeight: '50px', background: '#333', borderRadius: '6px' }}>
+                    <CrossmintPayButton
+                        collectionId={CROSSMINT_COLLECTION_ID}
+                        projectId={CROSSMINT_PROJECT_ID}
+                        mintConfig={{ "type": "erc-721", "totalPrice": "0.50", "quantity": "1" }}
+                        environment="production"
+                        style={{ width: '100%', padding: '12px', background: '#fff', color: '#000', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer', textAlign: 'center' }}
+                    />
+                </div>
+                <p style={{fontSize: '11px', color: '#666', marginTop: '5px', textAlign: 'center'}}>
+                    *Verification required for production cards
+                </p>
             </div>
 
-            {/* CROSSMINT BUTTON WITH MANUAL STYLING FIX */}
-            <div style={{ width: '100%', height: '50px', background: '#333', borderRadius: '8px', overflow: 'hidden' }}>
-                <CrossmintPayButton
-                  collectionId={CROSSMINT_COLLECTION_ID}
-                  projectId={CROSSMINT_PROJECT_ID}
-                  mintConfig={{ 
-                      "type": "erc-721", 
-                      "totalPrice": "0.50", 
-                      "quantity": "1" 
-                  }}
-                  environment="production"
-                  // MANUALLY FORCE STYLING SO IT IS VISIBLE
-                  style={{ 
-                    width: '100%', 
-                    height: '100%', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    background: 'white',
-                    color: 'black',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
-                  }}
-                  className="crossmint-button-manual-fix"
-                />
+            <div style={{ textAlign: 'center', color: '#444' }}>— OR —</div>
+
+            {/* OPTION 2: CRYPTO (RESTORED!) */}
+            <div style={{ padding: '15px', background: '#222', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <span style={{ fontWeight: 'bold' }}>💎 Pay with Crypto</span>
+                    <span style={{ color: '#666' }}>0.1 MATIC</span>
+                </div>
+                <button 
+                    onClick={() => writeContract({ 
+                        address: CONTRACT_ADDRESS, abi: ABI, functionName: 'mintGenesis', 
+                        args: [address || '0x0000000000000000000000000000000000000000'],
+                        value: BigInt(100000000000000000) // 0.1 MATIC
+                    })}
+                    disabled={!isConnected || isPending}
+                    style={{ width: '100%', background: '#8b5cf6', color: 'white', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                    {isPending ? 'Processing...' : 'Mint with Wallet'}
+                </button>
             </div>
-            <p style={{fontSize: '10px', color: '#555', textAlign: 'center'}}>
-                (If button is invisible, check Collection ID in code)
-            </p>
+
           </div>
         </section>
 
-        {/* ADMIN ONLY SECTION */}
+        {/* ADMIN ONLY: CUSTOM MINT */}
         {isAdmin && (
             <div style={{ border: '1px dashed #666', padding: '20px', borderRadius: '12px' }}>
                 <h3 style={{ marginTop: 0, color: '#fbbf24', textAlign: 'center' }}>👑 ADMIN / TREASURY CONTROLS</h3>
                 
-                {/* SCENARIO 1: CUSTOM MINT */}
                 <section style={{ marginTop: '20px', background: '#1a1a1a', padding: '15px', borderRadius: '8px' }}>
-                    <h2 style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>SCENARIO 1: MINT CUSTOM NFT</h2>
+                    <h2 style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>SCENARIO 1: CUSTOM NFT TOOL</h2>
                     <input 
                         type="text" 
                         placeholder="Paste IPFS Hash (ipfs://...)" 
@@ -123,16 +127,15 @@ export default function Home() {
                         onClick={() => writeContract({ 
                         address: CONTRACT_ADDRESS, abi: ABI, functionName: 'mintCustom', 
                         args: [customImage || GENESIS_URI], 
-                        value: BigInt(100000000000000000) // 0.1 MATIC
+                        value: BigInt(100000000000000000) 
                         })}
                         disabled={!isConnected || isPending}
                         style={{ width: '100%', background: '#fff', color: 'black', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
                     >
-                    {isPending ? 'Minting...' : 'Mint Special Key (0.1 MATIC)'}
+                    Mint Special Key
                     </button>
                 </section>
 
-                {/* REVOKE & WITHDRAW */}
                 <section style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
                     <button 
                     onClick={() => {
@@ -141,7 +144,7 @@ export default function Home() {
                     }}
                     style={{ background: '#dc2626', color: 'white', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', flex: 1 }}
                     >
-                    ⚠️ Revoke Key
+                    ⚠️ Revoke
                     </button>
                     <button 
                     onClick={() => writeContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'withdraw' })}
@@ -158,7 +161,7 @@ export default function Home() {
           <h2 style={{ margin: 0, color: isUnlocked ? '#4ade80' : '#f87171' }}>
             {isUnlocked ? '🔓 APP UNLOCKED' : '🔒 APP LOCKED'}
           </h2>
-          {isAdmin && <p style={{ fontSize: '12px', color: '#fbbf24', marginTop: '5px' }}>(Unlocked by Treasury Authority)</p>}
+          {isAdmin && <p style={{ fontSize: '12px', color: '#fbbf24', marginTop: '5px' }}>(Admin Override Active)</p>}
         </div>
 
       </div>

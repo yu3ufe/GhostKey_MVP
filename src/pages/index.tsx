@@ -4,12 +4,15 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 // @ts-ignore
 import { CrossmintPayButton } from "@crossmint/client-sdk-react-ui";
-import "@crossmint/client-sdk-react-ui/styles.css";
 
-// --- CONFIGURATION ---
-const CONTRACT_ADDRESS = '0x5f06BAeEbB433b1ce4B0143c88AD6F4a0E83a48e';
+// --- CONFIGURATION (FILL THESE) ---
+const CONTRACT_ADDRESS = '0x5f06BAeEbB433b1ce4B0143c88AD6F4a0E83a48e'; 
 const TREASURY_ADDRESS = '0x081ded677e03c5070d75f681e82a9ab0dfcf78c3';
-const GENESIS_URI = 'ipfs://bafkreigab7aey2nddpt7zw4zyvtqc2tyhg6rdw2yabd42hwn5c2v5mkz4q'; // From Phase 4
+const GENESIS_URI = 'ipfs://bafkreigab7aey2nddpt7zw4zyvtqc2tyhg6rdw2yabd42hwn5c2v5mkz4q'; 
+
+// CROSSMINT CONFIG
+const CROSSMINT_COLLECTION_ID = "8dc0127c-7ce2-4d34-9485-9b3be58e6442"; // From Collections tab
+const CROSSMINT_PROJECT_ID = "d945c06d-bd3c-4c81-b527-506ca635d747";       // From API Keys tab
 
 const ABI = [
   { inputs: [{internalType: "address", name: "to", type: "address"}], name: "mintGenesis", outputs: [], stateMutability: "payable", type: "function" },
@@ -37,7 +40,7 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#ededed', fontFamily: 'sans-serif', padding: '20px' }}>
-      <Head><title>GhostKey Demo</title></Head>
+      <Head><title>GhostKey Owner Demo</title></Head>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>GhostKey™ Owner Demo</h1>
@@ -54,16 +57,17 @@ export default function Home() {
               <p style={{ fontWeight: 'bold' }}>Genesis Key</p>
               <p style={{ fontSize: '0.8rem', color: '#666' }}>$0.50 USD • Visa/Mastercard</p>
             </div>
-            {/* HERE IS THE FIX FOR THE PRICE */}
+            
             <CrossmintPayButton
-              collectionId="8dc0127c-7ce2-4d34-9485-9b3be58e6442"
-              projectId="YOUR_PROJECT_ID"
+              collectionId={CROSSMINT_COLLECTION_ID}
+              projectId={CROSSMINT_PROJECT_ID}
               mintConfig={{ 
                   "type": "erc-721", 
-                  "totalPrice": "0.50", // <--- THIS SETS THE PRICE
+                  "totalPrice": "0.50", 
                   "quantity": "1" 
               }}
               environment="production"
+              style={{ padding: '10px 20px', borderRadius: '8px' }} // Basic manual styling since we removed CSS
             />
           </div>
         </section>
@@ -83,7 +87,7 @@ export default function Home() {
                 onClick={() => writeContract({ 
                   address: CONTRACT_ADDRESS, abi: ABI, functionName: 'mintCustom', 
                   args: [customImage || GENESIS_URI], 
-                  value: BigInt(100000000000000000) // 0.1 MATIC in Wei
+                  value: BigInt(100000000000000000) // 0.1 MATIC
                 })}
                 disabled={!isConnected || isPending}
                 style={{ background: '#fff', color: 'black', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
@@ -93,7 +97,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SCENARIO 4 & 5: ADMIN & WITHDRAW */}
+        {/* ADMIN CONTROLS */}
         <section style={{ background: '#2e1010', padding: '20px', borderRadius: '12px', border: '1px solid #5e1f1f' }}>
           <h2 style={{ color: '#f87171', fontSize: '0.9rem', marginBottom: '10px' }}>ADMIN CONTROLS</h2>
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -110,7 +114,7 @@ export default function Home() {
                onClick={() => writeContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'withdraw' })}
                style={{ background: '#16a34a', color: 'white', padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', flex: 1 }}
             >
-              💰 Withdraw to Treasury
+              💰 Withdraw
             </button>
           </div>
         </section>

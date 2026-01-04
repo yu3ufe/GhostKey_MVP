@@ -3,6 +3,7 @@ import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import { useEffect, useState, useRef } from 'react';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
+import { usePublicClient } from 'wagmi';
 
 // --- CONFIGURATION ---
 const CONTRACT_ADDRESS = '0x5397352F1085b8ea2a1Ddfc8CF3b4dBa978c26F8'; // 0x5f06BAeEbB433b1ce4B0143c88AD6F4a0E83a48e old contract address
@@ -24,7 +25,9 @@ const ABI = [
   { inputs: [{internalType: "string", name: "uri", type: "string"}], name: "mintCustom", outputs: [], stateMutability: "payable", type: "function" },
   { inputs: [{internalType: "address", name: "owner", type: "address"}], name: "balanceOf", outputs: [{internalType: "uint256", name: "", type: "uint256"}], stateMutability: "view", type: "function" },
   { inputs: [{internalType: "uint256", name: "tokenId", type: "uint256"}], name: "revokeLicense", outputs: [], stateMutability: "nonpayable", type: "function" },
-  { inputs: [], name: "withdraw", outputs: [], stateMutability: "nonpayable", type: "function" }
+  { inputs: [], name: "withdraw", outputs: [], stateMutability: "nonpayable", type: "function" },
+  { inputs: [], name: "nextTokenId", outputs: [{internalType: "uint256", name: "", type: "uint256"}], stateMutability: "view", type: "function" },
+  { inputs: [{internalType: "uint256", name: "tokenId", type: "uint256"}], name: "ownerOf", outputs: [{internalType: "address", name: "", type: "address"}], stateMutability: "view", type: "function" }
 ] as const;
 
 export default function Home() {
@@ -40,6 +43,39 @@ export default function Home() {
 
   // ADMIN CHECK (Safe Case-Insensitive)
   const isAdmin = address && TREASURY_ADDRESS && (address.toLowerCase() === TREASURY_ADDRESS.toLowerCase());
+
+  // --- NEW ADMIN LIST LOGIC ---
+  const [adminList, setAdminList] = useState<any[]>([]);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+
+  // 1. Read the total number of tokens minted ever
+  const { data: totalMinted } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: ABI, functionName: 'nextTokenId',
+  });
+
+  const publicClient = usePublicClient();
+
+  const fetchAllTokens = async () => {
+    if (!totalMinted || !publicClient) return;
+    setIsLoadingList(true);
+    const count = Number(totalMinted);
+    const tempList = [];
+
+    for (let i = 0; i < count; i++) {
+        try {
+            // Try to get the owner. If it exists, it's ACTIVE.
+            const owner = await publicClient.readContract({
+                address: CONTRACT_ADDRESS, abi: ABI, functionName: 'ownerOf', args: [BigInt(i)]
+            });
+            tempList.push({ id: i, status: 'Active', owner: owner });
+        } catch (error) {
+            // If ownerOf() fails/reverts, it means the token was BURNT/REVOKED.
+            tempList.push({ id: i, status: 'Revoked', owner: '0x00... (Burnt)' });
+        }
+    }
+    setAdminList(tempList);
+    setIsLoadingList(false);
+  };
 
   const { data: balance, refetch } = useReadContract({
     address: CONTRACT_ADDRESS, abi: ABI, functionName: 'balanceOf', args: address ? [address] : undefined,
@@ -171,6 +207,66 @@ export default function Home() {
                     💰 Withdraw
                     </button>
                 </section>
+                {/* --- NEW ADMIN LIST TABLE --- */}
+                <div style={{ marginTop: '30px', borderTop: '1px solid #444', paddingTop: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                        <h4 style={{ margin: 0, color: '#ededed' }}>📋 Master License List</h4>
+                        <button 
+                            onClick={fetchAllTokens}
+                            style={{ padding: '5px 10px', fontSize: '12px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '5px', cursor: 'pointer' }}
+                        >
+                            {isLoadingList ? 'Scanning...' : '🔄 Refresh List'}
+                        </button>
+                    </div>
+
+                    {/* THE TABLE */}
+                    <div style={{ maxHeight: '200px', overflowY: 'auto', background: '#111', borderRadius: '8px', padding: '10px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', color: '#ccc' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid #333', textAlign: 'left' }}>
+                                    <th style={{ padding: '5px' }}>ID</th>
+                                    <th style={{ padding: '5px' }}>Status</th>
+                                    <th style={{ padding: '5px' }}>Owner Wallet</th>
+                                    <th style={{ padding: '5px' }}>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {adminList.length === 0 ? (
+                                    <tr><td colSpan={4} style={{ padding: '10px', textAlign: 'center', color: '#555' }}>Click Refresh to load...</td></tr>
+                                ) : (
+                                    adminList.map((token) => (
+                                        <tr key={token.id} style={{ borderBottom: '1px solid #222' }}>
+                                            <td style={{ padding: '8px', color: 'white', fontWeight: 'bold' }}>#{token.id}</td>
+                                            <td style={{ padding: '8px' }}>
+                                                <span style={{ 
+                                                    padding: '2px 6px', borderRadius: '4px', 
+                                                    background: token.status === 'Active' ? '#102e1b' : '#450a0a',
+                                                    color: token.status === 'Active' ? '#4ade80' : '#f87171' 
+                                                }}>
+                                                    {token.status}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '8px', fontFamily: 'monospace' }}>
+                                                {token.owner.toString().substring(0, 6)}...{token.owner.toString().substring(38)}
+                                            </td>
+                                            <td style={{ padding: '8px' }}>
+                                                {token.status === 'Active' && (
+                                                    <button 
+                                                        onClick={() => writeContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'revokeLicense', args: [BigInt(token.id)] })}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px' }}
+                                                        title="Revoke This License"
+                                                    >
+                                                        🚫
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         )}
 

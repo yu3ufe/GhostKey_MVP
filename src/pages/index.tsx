@@ -89,14 +89,14 @@ export default function Home() {
             <div style={{ padding: '15px', background: '#222', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <span style={{ fontWeight: 'bold' }}>💳 Pay with Card</span>
-                    <span style={{ color: '#666' }}>$10.00</span>
+                    <span style={{ color: '#666' }}>~$5.00</span>
                 </div>
                 {/* FORCE VISIBILITY WRAPPER */}
                 <div style={{ position: 'relative', minHeight: '50px', background: '#333', borderRadius: '6px' }}>
                     <CrossmintPayButton
                         collectionId={CROSSMINT_COLLECTION_ID}
                         projectId={CROSSMINT_PROJECT_ID}
-                        mintConfig={{ "type": "erc-721", "totalPrice": "10.00", "quantity": "1" }}
+                        mintConfig={{ "type": "erc-721", "totalPrice": "5.00", "quantity": "1" }}
                         environment="production"
                         style={{ width: '100%', padding: '12px', background: '#fff', color: '#000', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer', textAlign: 'center' }}
                     />
